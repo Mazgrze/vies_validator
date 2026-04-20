@@ -17,11 +17,23 @@
         <label for="vat-number">VAT Number:</label>
         <input type="text" id="vat-number" placeholder="123456789">
         <br/>
-        <button onclick="validateVAT();">Validate VAT</button>
+        <button onclick="validateVATFromForm();">Validate VAT</button>
         <div id="validation-result"></div>
       </div>
-      <br/>
-    </div>
+       <br/>
+       <div id="csv-form">
+         <h2>Batch Validate from CSV</h2>
+         <p>VAT numbers in first column, country code as first 2 characters</p>
+         <button onclick="downloadCSVTemplate();">Download CSV Template</button>
+         <button onclick="selectCSVFile();">Select CSV File</button>
+         <div id="selected-file"></div>
+         <br/>
+         <button onclick="validateCSV();">Validate from CSV</button>
+         <button id="export-csv-btn" onclick="exportValidatedCSV();" style="display: none;">Export Valid Results to CSV</button>
+         <div id="csv-validation-result"></div>
+       </div>
+       <br/>
+     </div>
     <!-- Neutralino.js client. This file is gitignored, 
         because `neu update` typically downloads it.
         Avoid copy-pasting it. 

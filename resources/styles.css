@@ -56,3 +56,76 @@ body {
     margin-top: 10px;
     font-weight: bold;
 }
+
+#csv-form {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+#csv-form h2 {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+#csv-form button {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+#csv-form button:first-of-type {
+    background-color: #17a2b8;
+}
+
+#csv-form button:first-of-type:hover {
+    background-color: #138496;
+}
+
+#csv-form button:nth-of-type(3) {
+    background-color: #ffc107;
+    color: black;
+}
+
+#csv-form button:nth-of-type(3):hover {
+    background-color: #e0a800;
+}
+
+#csv-form button:nth-of-type(1) {
+    background-color: #17a2b8;
+}
+
+#csv-form button:nth-of-type(1):hover {
+    background-color: #138496;
+}
+
+#csv-form button:hover {
+    background-color: #1e7e34;
+}
+
+#csv-validation-result {
+    margin-top: 10px;
+}
+
+#csv-validation-result table {
+    margin-top: 10px;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#csv-validation-result th, #csv-validation-result td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+#csv-validation-result th {
+    background-color: #f2f2f2;
+}
