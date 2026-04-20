@@ -1,5 +1,31 @@
 {
   "dependencies": {
     "@neutralinojs/neu": "^11.7.1"
-  }
+  },
+  "name": "vies_validator",
+  "version": "1.0.0",
+  "description": "The default template for a Neutralinojs app. It's possible to use your favorite frontend framework by using [these steps](https://neutralino.js.org/docs/getting-started/using-frontend-libraries).",
+  "main": "vite.config.js",
+  "devDependencies": {},
+  
+  "dependencies": {
+    "@neutralinojs/neu": "^11.7.1"
+  },
+
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "neu run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mazgrze/vies_validator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  
+  "bugs": {
+    "url": "https://github.com/Mazgrze/vies_validator/issues"
+  },
+  "homepage": "https://github.com/Mazgrze/vies_validator#readme"
 }

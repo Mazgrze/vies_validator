@@ -7,14 +7,20 @@
   </head>
   <body>
     <div id="neutralinoapp">
-      <h1>NeutralinoJs</h1>
+      <h1>VAT EU Validator</h1>
       <div id="info"></div>
       <br/>
-      <img src="/icons/logo.gif" alt="Neutralinojs" />
-      <div>
-        <a href="#" onclick="openDocs();">Docs</a> &middot;  
-        <a href="#" onclick="openTutorial();">Video tutorial</a>
+      <div id="vat-form">
+        <label for="country-code">Country Code (e.g., DE, FR):</label>
+        <input type="text" id="country-code" maxlength="2" placeholder="DE" >
+        <br/>
+        <label for="vat-number">VAT Number:</label>
+        <input type="text" id="vat-number" placeholder="123456789">
+        <br/>
+        <button onclick="validateVAT();">Validate VAT</button>
+        <div id="validation-result"></div>
       </div>
+      <br/>
     </div>
     <!-- Neutralino.js client. This file is gitignored, 
         because `neu update` typically downloads it.

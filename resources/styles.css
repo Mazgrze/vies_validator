@@ -18,3 +18,41 @@ body {
     font-size: 16px;
     font-weight: normal;
 }
+
+#vat-form {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+#vat-form label {
+    display: inline-block;
+    width: 120px;
+    margin-bottom: 10px;
+}
+
+#vat-form input {
+    width: 200px;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+#vat-form button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#vat-form button:hover {
+    background-color: #0056b3;
+}
+
+#validation-result {
+    margin-top: 10px;
+    font-weight: bold;
+}
