@@ -75,6 +75,56 @@ export async function selectCSVFile() {
 }
 
 /*
+    Function to display validation results in HTML table.
+*/
+function displayValidationResults(results, validCount, invalidCount, resultDiv) {
+    // Display results
+    let html = `<p>Validation complete. Valid: ${validCount}, Invalid: ${invalidCount}</p>`;
+    html += '<table border="1" style="border-collapse: collapse;"><tr><th>VAT Number</th><th>Valid</th><th>Name</th><th>Address</th></tr>';
+
+    for (const result of results) {
+        const color = result.valid ? 'green' : 'red';
+        const status = result.valid ? 'Yes' : (result.error || 'No');
+        html += `<tr style="color: ${color};"><td>${result.vat}</td><td>${status}</td><td>${result.name || ''}</td><td>${result.address || ''}</td></tr>`;
+    }
+
+    html += '</table>';
+    resultDiv.innerHTML = html;
+
+    // Store results for export
+    window.lastValidationResults = results;
+
+    // Show export button
+    document.getElementById('export-csv-btn').style.display = 'inline-block';
+}
+
+/*
+    Function to fetch VAT validation data from VIES API.
+*/
+async function fetchVATData(countryCode, vatNumber) {
+    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
+    console.log('Validating:', countryCode, vatNumber, 'URL:', url);
+    const maxRetries = 100;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const command = `curl -s "${url}"`;
+        const response = await Neutralino.os.execCommand(command);
+        console.log(`API response exit code (attempt ${attempt}):`, response.exitCode);
+
+        if (response.exitCode === 0) {
+            return JSON.parse(response.stdOut);
+        }
+
+        if (attempt < maxRetries) {
+            console.log(`Retry ${attempt} failed, waiting 1 second...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+
+    throw new Error(`Failed to fetch VAT data after ${maxRetries} attempts`);
+}
+
+/*
     Function to validate VAT numbers from CSV file.
 */
 export async function validateCSV() {
@@ -130,17 +180,7 @@ export async function validateCSV() {
 
             // Validate using VIES API
             try {
-                const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
-                console.log('Validating:', countryCode, vatNumber, 'URL:', url);
-                const command = `curl -s "${url}"`;
-                const response = await Neutralino.os.execCommand(command);
-                console.log('API response exit code:', response.exitCode);
-
-                if (response.exitCode !== 0) {
-                    throw new Error(`Curl failed with exit code ${response.exitCode}: ${response.stdErr}`);
-                }
-
-                const data = JSON.parse(response.stdOut);
+                const data = await fetchVATData(countryCode, vatNumber);
                 const isValid = data.isValid;
                 results.push({
                     vat: vatEntry,
@@ -161,24 +201,7 @@ export async function validateCSV() {
             }
         }
 
-        // Display results
-        let html = `<p>Validation complete. Valid: ${validCount}, Invalid: ${invalidCount}</p>`;
-        html += '<table border="1" style="border-collapse: collapse;"><tr><th>VAT Number</th><th>Valid</th><th>Name</th><th>Address</th></tr>';
-
-        for (const result of results) {
-            const color = result.valid ? 'green' : 'red';
-            const status = result.valid ? 'Yes' : (result.error || 'No');
-            html += `<tr style="color: ${color};"><td>${result.vat}</td><td>${status}</td><td>${result.name || ''}</td><td>${result.address || ''}</td></tr>`;
-        }
-
-        html += '</table>';
-        resultDiv.innerHTML = html;
-
-        // Store results for export
-        window.lastValidationResults = results;
-
-        // Show export button
-        document.getElementById('export-csv-btn').style.display = 'inline-block';
+        displayValidationResults(results, validCount, invalidCount, resultDiv);
 
     } catch (error) {
         console.error('Error processing CSV:', error);
