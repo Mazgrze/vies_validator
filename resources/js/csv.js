@@ -200,7 +200,9 @@ export async function validateCSV() {
         console.error('Error processing CSV:', error);
         resultDiv.innerHTML = `<p style="color: red;">Error processing CSV file: ${error.message}. Please check the file format and try again.</p>`;
         const progressBar = document.getElementById('validation-progress');
+        const progressText = document.getElementById('progress-text');
         progressBar.style.display = 'none';
+        progressText.style.display = 'none';
     }
 }
 
@@ -210,6 +212,7 @@ export async function validateCSV() {
 async function performValidation(lines, startIndex, initialResults, initialValidCount, initialInvalidCount) {
     const resultDiv = document.getElementById('csv-validation-result');
     const progressBar = document.getElementById('validation-progress');
+    const progressText = document.getElementById('progress-text');
     const pauseBtn = document.getElementById('pause-validation-btn');
     const resumeBtn = document.getElementById('resume-validation-btn');
     const validateBtn = document.getElementById('validate-csv-btn');
@@ -219,7 +222,9 @@ async function performValidation(lines, startIndex, initialResults, initialValid
 
     progressBar.max = lines.length;
     progressBar.value = startIndex;
+    progressText.textContent = `${startIndex}/${lines.length}`;
     progressBar.style.display = 'block';
+    progressText.style.display = 'block';
     pauseBtn.style.display = 'inline-block';
     resumeBtn.style.display = 'none';
     validateBtn.disabled = true;
@@ -232,6 +237,10 @@ async function performValidation(lines, startIndex, initialResults, initialValid
         for (let i = startIndex; i < lines.length; i++) {
             if (validationPaused) {
                 saveValidationState(lines, i, results, validCount, invalidCount);
+                // Store current results for export
+                window.lastValidationResults = results;
+                // Show export button
+                document.getElementById('export-csv-btn').style.display = 'inline-block';
                 resultDiv.innerHTML = '<p>Validation paused. You can resume later.</p>';
                 pauseBtn.style.display = 'none';
                 resumeBtn.style.display = 'inline-block';
@@ -285,11 +294,13 @@ async function performValidation(lines, startIndex, initialResults, initialValid
             }
 
             progressBar.value = i + 1;
+            progressText.textContent = `${i + 1}/${lines.length}`;
         }
 
         // Finished
         clearValidationState();
         progressBar.style.display = 'none';
+        progressText.style.display = 'none';
         pauseBtn.style.display = 'none';
         resumeBtn.style.display = 'none';
         validateBtn.disabled = false;
@@ -300,6 +311,7 @@ async function performValidation(lines, startIndex, initialResults, initialValid
         console.error('Error during validation:', error);
         resultDiv.innerHTML = `<p style="color: red;">Error during validation: ${error.message}</p>`;
         progressBar.style.display = 'none';
+        progressText.style.display = 'none';
         pauseBtn.style.display = 'none';
         resumeBtn.style.display = 'none';
         validateBtn.disabled = false;

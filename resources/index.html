@@ -9,32 +9,39 @@
     <div id="neutralinoapp">
       <h1>VAT EU Validator</h1>
       <div id="info"></div>
-      <br/>
-        <form action="#" id="vat-form">
-        <label for="country-code">Country Code (e.g., DE, FR):</label>
-        <input type="text" id="country-code" maxlength="2" placeholder="DE" >
-        <br/>
-        <label for="vat-number">VAT Number:</label>
-        <input type="text" id="vat-number" placeholder="123456789">
-        <br/>
-        <button >Validate VAT</button>
-        <div id="validation-result"></div>
-      </form>
        <br/>
-       <div id="csv-form">
-         <h2>Batch Validate from CSV</h2>
-         <p>VAT numbers in first column, country code as first 2 characters</p>
-          <button id="download-template-btn">Download CSV Template</button>
-          <button id="select-csv-btn">Select CSV File</button>
-         <div id="selected-file"></div>
-         <br/>
+       <div class="tabs">
+         <button class="tab-button active" data-tab="batch">Batch Validation</button>
+         <button class="tab-button " data-tab="single">Single Validation</button>
+       </div>
+       <div class="tab-content " id="single-tab">
+         <form action="#" id="vat-form">
+           <label for="country-code">Country Code (e.g., DE, FR):</label>
+           <input type="text" id="country-code" maxlength="2" placeholder="DE" >
+           <br/>
+           <label for="vat-number">VAT Number:</label>
+           <input type="text" id="vat-number" placeholder="123456789">
+           <br/>
+           <button >Validate VAT</button>
+           <div id="validation-result"></div>
+         </form>
+       </div>
+       <div class="tab-content active" id="batch-tab">
+         <div id="csv-form">
+           <h2>Batch Validate from CSV</h2>
+           <p>VAT numbers in first column, country code as first 2 characters</p>
+           <button id="download-template-btn">Download CSV Template</button>
+           <button id="select-csv-btn">Select CSV File</button>
+           <div id="selected-file"></div>
+           <br/>
            <button id="validate-csv-btn">Validate from CSV</button>
            <button id="pause-validation-btn" style="display: none;">Pause Validation</button>
            <button id="resume-validation-btn" style="display: none;">Resume Validation</button>
            <button id="export-csv-btn" style="display: none;">Export Valid Results to CSV</button>
-
-          <progress id="validation-progress" value="0" max="100" style="display: none; width: 100%;"></progress>
-          <div id="csv-validation-result"></div>
+           <progress id="validation-progress" value="0" max="100" style="display: none; width: 100%;"></progress>
+           <span id="progress-text" style="display: none;">0/0</span>
+           <div id="csv-validation-result"></div>
+         </div>
        </div>
        <br/>
      </div>
