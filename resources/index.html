@@ -28,9 +28,13 @@
           <button id="select-csv-btn">Select CSV File</button>
          <div id="selected-file"></div>
          <br/>
-          <button id="validate-csv-btn">Validate from CSV</button>
-          <button id="export-csv-btn" style="display: none;">Export Valid Results to CSV</button>
-         <div id="csv-validation-result"></div>
+           <button id="validate-csv-btn">Validate from CSV</button>
+           <button id="pause-validation-btn" style="display: none;">Pause Validation</button>
+           <button id="resume-validation-btn" style="display: none;">Resume Validation</button>
+           <button id="export-csv-btn" style="display: none;">Export Valid Results to CSV</button>
+
+          <progress id="validation-progress" value="0" max="100" style="display: none; width: 100%;"></progress>
+          <div id="csv-validation-result"></div>
        </div>
        <br/>
      </div>

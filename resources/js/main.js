@@ -5,7 +5,7 @@
 
 import { showInfo, openDocs, openTutorial, setTray, onTrayMenuItemClicked, onWindowClose } from './app.js';
 import { validateVATFromForm } from './vat.js';
-import { downloadCSVTemplate, selectCSVFile, validateCSV, exportValidatedCSV } from './csv.js';
+import { downloadCSVTemplate, selectCSVFile, validateCSV, pauseValidation, resumeValidation, exportValidatedCSV } from './csv.js';
 
 // Initialize Neutralino
 Neutralino.init();
@@ -25,12 +25,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadTemplateBtn = document.getElementById('download-template-btn');
     const selectCsvBtn = document.getElementById('select-csv-btn');
     const validateCsvBtn = document.getElementById('validate-csv-btn');
+    const pauseValidationBtn = document.getElementById('pause-validation-btn');
+    const resumeValidationBtn = document.getElementById('resume-validation-btn');
     const exportCsvBtn = document.getElementById('export-csv-btn');
 
     vatForm.addEventListener('submit', validateVATFromForm);
     downloadTemplateBtn.addEventListener('click', downloadCSVTemplate);
     selectCsvBtn.addEventListener('click', selectCSVFile);
     validateCsvBtn.addEventListener('click', validateCSV);
+    pauseValidationBtn.addEventListener('click', pauseValidation);
+    resumeValidationBtn.addEventListener('click', resumeValidation);
     exportCsvBtn.addEventListener('click', exportValidatedCSV);
 });
 

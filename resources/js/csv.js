@@ -1,6 +1,43 @@
 import { isValidEUCountryCode } from './utils.js';
 
 let selectedCSVPath = null;
+let validationRunning = false;
+let validationPaused = false;
+
+function saveValidationState(lines, currentIndex, results, validCount, invalidCount) {
+    localStorage.setItem('validationState', JSON.stringify({
+        lines,
+        currentIndex,
+        results,
+        validCount,
+        invalidCount,
+        selectedCSVPath
+    }));
+}
+
+function loadValidationState() {
+    const state = localStorage.getItem('validationState');
+    return state ? JSON.parse(state) : null;
+}
+
+function clearValidationState() {
+    localStorage.removeItem('validationState');
+}
+
+export function pauseValidation() {
+    validationPaused = true;
+}
+
+export async function resumeValidation() {
+    const state = loadValidationState();
+    if (!state) {
+        alert('No paused validation to resume.');
+        return;
+    }
+    selectedCSVPath = state.selectedCSVPath;
+    document.getElementById('selected-file').innerHTML = `<p>Selected: ${selectedCSVPath}</p>`;
+    await performValidation(state.lines, state.currentIndex, state.results, state.validCount, state.invalidCount);
+}
 
 /*
     Function to download a CSV template file.
@@ -135,6 +172,13 @@ export async function validateCSV() {
         return;
     }
 
+    // Check if there's a paused validation to resume
+    const savedState = loadValidationState();
+    if (savedState && savedState.selectedCSVPath === selectedCSVPath) {
+        await resumeValidation();
+        return;
+    }
+
     resultDiv.innerHTML = '<p>Reading and validating CSV...</p>';
 
     try {
@@ -150,11 +194,51 @@ export async function validateCSV() {
             return;
         }
 
-        const results = [];
-        let validCount = 0;
-        let invalidCount = 0;
+        await performValidation(lines, 0, [], 0, 0);
 
-        for (let i = 0; i < lines.length; i++) {
+    } catch (error) {
+        console.error('Error processing CSV:', error);
+        resultDiv.innerHTML = `<p style="color: red;">Error processing CSV file: ${error.message}. Please check the file format and try again.</p>`;
+        const progressBar = document.getElementById('validation-progress');
+        progressBar.style.display = 'none';
+    }
+}
+
+/*
+    Function to perform the validation loop, can be resumed.
+*/
+async function performValidation(lines, startIndex, initialResults, initialValidCount, initialInvalidCount) {
+    const resultDiv = document.getElementById('csv-validation-result');
+    const progressBar = document.getElementById('validation-progress');
+    const pauseBtn = document.getElementById('pause-validation-btn');
+    const resumeBtn = document.getElementById('resume-validation-btn');
+    const validateBtn = document.getElementById('validate-csv-btn');
+
+    validationRunning = true;
+    validationPaused = false;
+
+    progressBar.max = lines.length;
+    progressBar.value = startIndex;
+    progressBar.style.display = 'block';
+    pauseBtn.style.display = 'inline-block';
+    resumeBtn.style.display = 'none';
+    validateBtn.disabled = true;
+
+    let results = [...initialResults];
+    let validCount = initialValidCount;
+    let invalidCount = initialInvalidCount;
+
+    try {
+        for (let i = startIndex; i < lines.length; i++) {
+            if (validationPaused) {
+                saveValidationState(lines, i, results, validCount, invalidCount);
+                resultDiv.innerHTML = '<p>Validation paused. You can resume later.</p>';
+                pauseBtn.style.display = 'none';
+                resumeBtn.style.display = 'inline-block';
+                validationRunning = false;
+                return;
+            }
+
             const line = lines[i].trim();
             if (!line) continue;
 
@@ -199,13 +283,27 @@ export async function validateCSV() {
                 results.push({ vat: vatEntry, valid: false, error: 'API error' });
                 invalidCount++;
             }
+
+            progressBar.value = i + 1;
         }
 
+        // Finished
+        clearValidationState();
+        progressBar.style.display = 'none';
+        pauseBtn.style.display = 'none';
+        resumeBtn.style.display = 'none';
+        validateBtn.disabled = false;
         displayValidationResults(results, validCount, invalidCount, resultDiv);
+        validationRunning = false;
 
     } catch (error) {
-        console.error('Error processing CSV:', error);
-        resultDiv.innerHTML = `<p style="color: red;">Error processing CSV file: ${error.message}. Please check the file format and try again.</p>`;
+        console.error('Error during validation:', error);
+        resultDiv.innerHTML = `<p style="color: red;">Error during validation: ${error.message}</p>`;
+        progressBar.style.display = 'none';
+        pauseBtn.style.display = 'none';
+        resumeBtn.style.display = 'none';
+        validateBtn.disabled = false;
+        validationRunning = false;
     }
 }
 
@@ -235,14 +333,26 @@ export async function exportValidatedCSV() {
             csvContent += `${vatField},${status},${nameField},${addressField}\n`;
         }
 
-        // Save to Downloads folder
+        // Show native save dialog
         const homeDir = await Neutralino.os.getEnv('HOME') || await Neutralino.os.getEnv('USERPROFILE');
-        const downloadsDir = `${homeDir}/Downloads`;
-        const exportPath = `${downloadsDir}/validated_vat_results.csv`;
+        const defaultPath = `validated_vat_results.csv`;
 
-        // Use printf to write the content
-        const escapedContent = csvContent.replace(/'/g, "'\\''"); // Escape single quotes for shell
-        const command = `mkdir -p "${downloadsDir}" && printf '%s' '${escapedContent}' > "${exportPath}"`;
+        const exportPath = await Neutralino.os.showSaveDialog('Save Validation Results', {
+            defaultPath: defaultPath,
+            filters: [
+                {name: 'CSV files', extensions: ['csv']}
+            ]
+        });
+
+        if (!exportPath) {
+            // User cancelled the dialog
+            return;
+        }
+
+        // Ensure the directory exists
+        const dir = exportPath.substring(0, exportPath.lastIndexOf('/'));
+        const escapedContent = csvContent.replace(/'/g, "'\\''"); // Escape single quotes
+        const command = `mkdir -p "${dir}" && printf '%s\\n' '${escapedContent}' > "${exportPath}"`;
 
         const result = await Neutralino.os.execCommand(command);
 
