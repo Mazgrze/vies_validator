@@ -10,36 +10,36 @@
       <h1>VAT EU Validator</h1>
       <div id="info"></div>
       <br/>
-      <div id="vat-form">
+        <form action="#" id="vat-form">
         <label for="country-code">Country Code (e.g., DE, FR):</label>
         <input type="text" id="country-code" maxlength="2" placeholder="DE" >
         <br/>
         <label for="vat-number">VAT Number:</label>
         <input type="text" id="vat-number" placeholder="123456789">
         <br/>
-        <button onclick="validateVATFromForm();">Validate VAT</button>
+        <button >Validate VAT</button>
         <div id="validation-result"></div>
-      </div>
+      </form>
        <br/>
        <div id="csv-form">
          <h2>Batch Validate from CSV</h2>
          <p>VAT numbers in first column, country code as first 2 characters</p>
-         <button onclick="downloadCSVTemplate();">Download CSV Template</button>
-         <button onclick="selectCSVFile();">Select CSV File</button>
+          <button id="download-template-btn">Download CSV Template</button>
+          <button id="select-csv-btn">Select CSV File</button>
          <div id="selected-file"></div>
          <br/>
-         <button onclick="validateCSV();">Validate from CSV</button>
-         <button id="export-csv-btn" onclick="exportValidatedCSV();" style="display: none;">Export Valid Results to CSV</button>
+          <button id="validate-csv-btn">Validate from CSV</button>
+          <button id="export-csv-btn" style="display: none;">Export Valid Results to CSV</button>
          <div id="csv-validation-result"></div>
        </div>
        <br/>
      </div>
-    <!-- Neutralino.js client. This file is gitignored, 
+    <!-- Neutralino.js client. This file is gitignored,
         because `neu update` typically downloads it.
-        Avoid copy-pasting it. 
+        Avoid copy-pasting it.
         -->
     <script src="/js/neutralino.js"></script>
     <!-- Your app's source files -->
-    <script src="/js/main.js"></script>
+    <script type="module" src="/js/main.js"></script>
   </body>
 </html>
