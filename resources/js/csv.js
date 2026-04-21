@@ -1,5 +1,4 @@
 import { isValidEUCountryCode } from './utils.js';
-import { validateVAT } from './vat.js';
 
 let selectedCSVPath = null;
 
@@ -20,14 +19,27 @@ ATU12345678
 DK12345678`;
 
     try {
-        // Use shell command to create the file in user's Downloads directory
+        // Get home directory for default path suggestion
         const homeDir = await Neutralino.os.getEnv('HOME') || await Neutralino.os.getEnv('USERPROFILE');
-        const downloadsDir = `${homeDir}/Downloads`;
-        const templatePath = `${downloadsDir}/vat_template.csv`;
+        const defaultPath = `vat_template.csv`;
 
-        // Use printf to write the content (handles newlines better than echo)
+        // Show native save dialog
+        const templatePath = await Neutralino.os.showSaveDialog('Save CSV Template', {
+            defaultPath: defaultPath,
+            filters: [
+                {name: 'CSV files', extensions: ['csv']}
+            ]
+        });
+
+        if (!templatePath) {
+            // User cancelled the dialog
+            return;
+        }
+
+        // Ensure the directory exists
+        const dir = templatePath.substring(0, templatePath.lastIndexOf('/'));
         const escapedContent = csvContent.replace(/'/g, "'\\''"); // Escape single quotes
-        const command = `mkdir -p "${downloadsDir}" && printf '%s\\n' '${escapedContent}' > "${templatePath}"`;
+        const command = `mkdir -p "${dir}" && printf '%s\\n' '${escapedContent}' > "${templatePath}"`;
 
         const result = await Neutralino.os.execCommand(command);
 
@@ -38,26 +50,7 @@ DK12345678`;
         }
     } catch (error) {
         console.error('Error saving template:', error);
-
-        // Fallback: try to save to Desktop
-        try {
-            const homeDir = await Neutralino.os.getEnv('HOME') || await Neutralino.os.getEnv('USERPROFILE');
-            const desktopPath = `${homeDir}/Desktop/vat_template.csv`;
-
-            const escapedContent = csvContent.replace(/'/g, "'\\''");
-            const command = `printf '%s\\n' '${escapedContent}' > "${desktopPath}"`;
-
-            const result = await Neutralino.os.execCommand(command);
-
-            if (result.exitCode === 0) {
-                Neutralino.os.showMessageBox('Success', `CSV template saved to: ${desktopPath}`);
-            } else {
-                throw new Error(`Fallback command failed: ${result.stdErr}`);
-            }
-        } catch (fallbackError) {
-            console.error('Fallback error:', fallbackError);
-            Neutralino.os.showMessageBox('Error', 'Failed to save CSV template. Please check file permissions or create the file manually.');
-        }
+        Neutralino.os.showMessageBox('Error', 'Failed to save CSV template. Please check file permissions or try a different location.');
     }
 }
 
