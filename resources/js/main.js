@@ -104,7 +104,8 @@ let selectedCSVPath = null;
     Function to download a CSV template file.
 */
 async function downloadCSVTemplate() {
-    const csvContent = `DE123456789
+    const csvContent = `EU VAT Number
+DE123456789
 FR12345678901
 GB123456789
 IT12345678901
@@ -195,7 +196,7 @@ async function validateCSV() {
         // Read the file content
         const fileContent = await Neutralino.filesystem.readFile(selectedCSVPath);
         console.log('File content length:', fileContent.length);
-        const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+        const lines = fileContent.split('\n').slice(1).filter(line => line.trim() !== '');
         console.log('Number of lines:', lines.length);
 
         if (lines.length === 0) {
