@@ -105,6 +105,33 @@ export async function selectCSVFile() {
         if (response && response.length > 0) {
             selectedCSVPath = response[0];
             document.getElementById('selected-file').innerHTML = `<p>Selected: ${selectedCSVPath}</p>`;
+
+            // Reset validation state when selecting a new file
+            clearValidationState();
+            validationRunning = false;
+            validationPaused = false;
+
+            // Reset UI
+            const resultDiv = document.getElementById('csv-validation-result');
+            const progressBar = document.getElementById('validation-progress');
+            const progressText = document.getElementById('progress-text');
+            const pauseBtn = document.getElementById('pause-validation-btn');
+            const resumeBtn = document.getElementById('resume-validation-btn');
+            const exportBtn = document.getElementById('export-csv-btn');
+            const validateBtn = document.getElementById('validate-csv-btn');
+
+            resultDiv.innerHTML = '';
+            progressBar.style.display = 'none';
+            progressBar.value = 0;
+            progressText.style.display = 'none';
+            progressText.textContent = '';
+            pauseBtn.style.display = 'none';
+            resumeBtn.style.display = 'none';
+            exportBtn.style.display = 'none';
+            validateBtn.disabled = false;
+
+            // Clear previous results
+            window.lastValidationResults = null;
         }
     } catch (error) {
         console.error('Error selecting file:', error);
@@ -216,6 +243,8 @@ async function performValidation(lines, startIndex, initialResults, initialValid
     const pauseBtn = document.getElementById('pause-validation-btn');
     const resumeBtn = document.getElementById('resume-validation-btn');
     const validateBtn = document.getElementById('validate-csv-btn');
+
+    resultDiv.innerHTML = '<p>Validation in progress...</p>';
 
     validationRunning = true;
     validationPaused = false;
