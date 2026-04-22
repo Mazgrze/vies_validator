@@ -1,4 +1,5 @@
-import { isValidEUCountryCode } from './utils.js';
+import { processCSVBatch, processCSVBatchSOAP } from './api.js';
+import { CSV_TEMPLATE } from './utils.js';
 
 let selectedCSVPath = null;
 let validationRunning = false;
@@ -43,17 +44,7 @@ export async function resumeValidation() {
     Function to download a CSV template file.
 */
 export async function downloadCSVTemplate() {
-    const csvContent = `EU VAT Number
-DE123456789
-FR12345678901
-GB123456789
-IT12345678901
-ES123456789
-NL123456789B01
-PL1234567890
-BE1234567890
-ATU12345678
-DK12345678`;
+    
 
     try {
         // Get home directory for default path suggestion
@@ -75,7 +66,7 @@ DK12345678`;
 
         // Ensure the directory exists
         const dir = templatePath.substring(0, templatePath.lastIndexOf('/'));
-        const escapedContent = csvContent.replace(/'/g, "'\\''"); // Escape single quotes
+        const escapedContent = CSV_TEMPLATE.replace(/'/g, "'\\''"); // Escape single quotes
         const command = `mkdir -p "${dir}" && printf '%s\\n' '${escapedContent}' > "${templatePath}"`;
 
         const result = await Neutralino.os.execCommand(command);
@@ -162,31 +153,7 @@ function displayValidationResults(results, validCount, invalidCount, resultDiv) 
     document.getElementById('export-csv-btn').style.display = 'inline-block';
 }
 
-/*
-    Function to fetch VAT validation data from VIES API.
-*/
-async function fetchVATData(countryCode, vatNumber) {
-    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
-    console.log('Validating:', countryCode, vatNumber, 'URL:', url);
-    const maxRetries = 100;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        const command = `curl -s "${url}"`;
-        const response = await Neutralino.os.execCommand(command);
-        console.log(`API response exit code (attempt ${attempt}):`, response.exitCode);
-
-        if (response.exitCode === 0) {
-            return JSON.parse(response.stdOut);
-        }
-
-        if (attempt < maxRetries) {
-            console.log(`Retry ${attempt} failed, waiting 1 second...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-
-    throw new Error(`Failed to fetch VAT data after ${maxRetries} attempts`);
-}
 
 /*
     Function to validate VAT numbers from CSV file.
@@ -233,46 +200,7 @@ export async function validateCSV() {
     }
 }
 
-/*
-    Function to limit concurrency of async tasks.
-*/
-async function processWithConcurrency(tasks, concurrencyLimit, onProgress = () => {}) {
-    const results = new Array(tasks.length);
-    let index = 0;
-    let running = 0;
-    let resolveAll;
-    const allDone = new Promise(resolve => resolveAll = resolve);
 
-    const runNext = async () => {
-        if (index >= tasks.length) {
-            running--;
-            if (running === 0) resolveAll();
-            return;
-        }
-
-        const taskIndex = index++;
-        running++;
-
-        try {
-            results[taskIndex] = await tasks[taskIndex]();
-        } catch (error) {
-            results[taskIndex] = { error };
-        }
-
-        onProgress(taskIndex);
-
-        running--;
-        if (running === 0 && index >= tasks.length) resolveAll();
-        runNext();
-    };
-
-    for (let i = 0; i < concurrencyLimit && i < tasks.length; i++) {
-        runNext();
-    }
-
-    await allDone;
-    return results;
-}
 
 /*
     Function to perform the validation loop, can be resumed.
@@ -304,62 +232,10 @@ async function performValidation(lines, startIndex, initialResults, initialValid
     let invalidCount = initialInvalidCount;
 
     try {
-        const processVATEntry = async (i) => {
-            const line = lines[i].trim();
-            if (!line) return { result: null, validInc: 0, invalidInc: 0 };
-
-            const columns = line.split(',');
-            if (columns.length === 0) return { result: null, validInc: 0, invalidInc: 0 };
-
-            const vatEntry = columns[0].trim();
-            if (vatEntry.length < 3) {
-                return { result: { vat: vatEntry, valid: false, error: 'Invalid format' }, validInc: 0, invalidInc: 1 };
-            }
-
-            const countryCode = vatEntry.substring(0, 2).toUpperCase();
-            const vatNumber = vatEntry.substring(2);
-
-            if (!isValidEUCountryCode(countryCode)) {
-                return { result: { vat: vatEntry, valid: false, error: 'Invalid EU country code' }, validInc: 0, invalidInc: 1 };
-            }
-
-            try {
-                const data = await fetchVATData(countryCode, vatNumber);
-                const isValid = data.isValid;
-                return {
-                    result: {
-                        vat: vatEntry,
-                        valid: isValid,
-                        name: data.name || 'N/A',
-                        address: data.address || 'N/A'
-                    },
-                    validInc: isValid ? 1 : 0,
-                    invalidInc: isValid ? 0 : 1
-                };
-            } catch (error) {
-                return { result: { vat: vatEntry, valid: false, error: error.message }, validInc: 0, invalidInc: 1 };
-            }
-        };
-
-        const tasks = [];
-        for (let i = startIndex; i < lines.length; i++) {
-            tasks.push(() => processVATEntry(i));
-        }
-
-        const onProgress = (taskIndex) => {
-            progressBar.value = startIndex + taskIndex + 1;
-            progressText.textContent = `${progressBar.value}/${lines.length}`;
-        };
-
-        const taskResults = await processWithConcurrency(tasks, 20, onProgress);
-
-        for (let res of taskResults) {
-            if (res.result) {
-                results.push(res.result);
-            }
-            validCount += res.validInc;
-            invalidCount += res.invalidInc;
-        }
+        const batchResult = await processCSVBatchSOAP(lines, startIndex, progressBar, progressText, results, validCount, invalidCount);
+        results = batchResult.results;
+        validCount = batchResult.validCount;
+        invalidCount = batchResult.invalidCount;
 
         // Finished
         clearValidationState();

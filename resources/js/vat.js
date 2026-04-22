@@ -1,4 +1,5 @@
 import { isValidEUCountryCode } from './utils.js';
+import { validateVAT as validateVATViaAPI, validateVATSOAP } from './api.js';
 
 /*
     Function to validate VAT number using VIES REST API via curl to bypass CORS.
@@ -22,18 +23,11 @@ export async function validateVAT(countryCode, vatNumber, resultDiv) {
     resultDiv.innerHTML = '<p>Validating...</p>';
 
     try {
-        const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
-        const command = `curl -s "${url}"`;
-        const response = await Neutralino.os.execCommand(command);
+        // const result = await validateVATViaAPI(countryCode, vatNumber);
+        const result = await validateVATSOAP(countryCode, vatNumber);
 
-        if (response.exitCode !== 0) {
-            throw new Error(`Curl failed with exit code ${response.exitCode}: ${response.stdErr}`);
-        }
-
-        const data = JSON.parse(response.stdOut);
-
-        if (data.isValid) {
-            resultDiv.innerHTML = `<p style="color: green;">VAT number ${data.vatNumber} is valid.</p><p>Name: ${data.name || 'N/A'}</p><p>Address: ${data.address || 'N/A'}</p>`;
+        if (result.valid) {
+            resultDiv.innerHTML = `<p style="color: green;">VAT number ${result.vatNumber} is valid.</p><p>Name: ${result.name}</p><p>Address: ${result.address}</p>`;
         } else {
             resultDiv.innerHTML = '<p style="color: red;">VAT number is invalid or not found.</p>';
         }
