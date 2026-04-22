@@ -234,6 +234,47 @@ export async function validateCSV() {
 }
 
 /*
+    Function to limit concurrency of async tasks.
+*/
+async function processWithConcurrency(tasks, concurrencyLimit, onProgress = () => {}) {
+    const results = new Array(tasks.length);
+    let index = 0;
+    let running = 0;
+    let resolveAll;
+    const allDone = new Promise(resolve => resolveAll = resolve);
+
+    const runNext = async () => {
+        if (index >= tasks.length) {
+            running--;
+            if (running === 0) resolveAll();
+            return;
+        }
+
+        const taskIndex = index++;
+        running++;
+
+        try {
+            results[taskIndex] = await tasks[taskIndex]();
+        } catch (error) {
+            results[taskIndex] = { error };
+        }
+
+        onProgress(taskIndex);
+
+        running--;
+        if (running === 0 && index >= tasks.length) resolveAll();
+        runNext();
+    };
+
+    for (let i = 0; i < concurrencyLimit && i < tasks.length; i++) {
+        runNext();
+    }
+
+    await allDone;
+    return results;
+}
+
+/*
     Function to perform the validation loop, can be resumed.
 */
 async function performValidation(lines, startIndex, initialResults, initialValidCount, initialInvalidCount) {
@@ -254,7 +295,7 @@ async function performValidation(lines, startIndex, initialResults, initialValid
     progressText.textContent = `${startIndex}/${lines.length}`;
     progressBar.style.display = 'block';
     progressText.style.display = 'block';
-    pauseBtn.style.display = 'inline-block';
+    pauseBtn.style.display = 'none';
     resumeBtn.style.display = 'none';
     validateBtn.disabled = true;
 
@@ -263,67 +304,61 @@ async function performValidation(lines, startIndex, initialResults, initialValid
     let invalidCount = initialInvalidCount;
 
     try {
-        for (let i = startIndex; i < lines.length; i++) {
-            if (validationPaused) {
-                saveValidationState(lines, i, results, validCount, invalidCount);
-                // Store current results for export
-                window.lastValidationResults = results;
-                // Show export button
-                document.getElementById('export-csv-btn').style.display = 'inline-block';
-                resultDiv.innerHTML = '<p>Validation paused. You can resume later.</p>';
-                pauseBtn.style.display = 'none';
-                resumeBtn.style.display = 'inline-block';
-                validationRunning = false;
-                return;
-            }
-
+        const processVATEntry = async (i) => {
             const line = lines[i].trim();
-            if (!line) continue;
+            if (!line) return { result: null, validInc: 0, invalidInc: 0 };
 
-            // Assume first column, split by comma
             const columns = line.split(',');
-            if (columns.length === 0) continue;
+            if (columns.length === 0) return { result: null, validInc: 0, invalidInc: 0 };
 
             const vatEntry = columns[0].trim();
             if (vatEntry.length < 3) {
-                results.push({ vat: vatEntry, valid: false, error: 'Invalid format' });
-                invalidCount++;
-                continue;
+                return { result: { vat: vatEntry, valid: false, error: 'Invalid format' }, validInc: 0, invalidInc: 1 };
             }
 
             const countryCode = vatEntry.substring(0, 2).toUpperCase();
             const vatNumber = vatEntry.substring(2);
 
             if (!isValidEUCountryCode(countryCode)) {
-                results.push({ vat: vatEntry, valid: false, error: 'Invalid EU country code' });
-                invalidCount++;
-                continue;
+                return { result: { vat: vatEntry, valid: false, error: 'Invalid EU country code' }, validInc: 0, invalidInc: 1 };
             }
 
-            // Validate using VIES API
             try {
                 const data = await fetchVATData(countryCode, vatNumber);
                 const isValid = data.isValid;
-                results.push({
-                    vat: vatEntry,
-                    valid: isValid,
-                    name: data.name || 'N/A',
-                    address: data.address || 'N/A'
-                });
-
-                if (isValid) {
-                    validCount++;
-                } else {
-                    invalidCount++;
-                }
+                return {
+                    result: {
+                        vat: vatEntry,
+                        valid: isValid,
+                        name: data.name || 'N/A',
+                        address: data.address || 'N/A'
+                    },
+                    validInc: isValid ? 1 : 0,
+                    invalidInc: isValid ? 0 : 1
+                };
             } catch (error) {
-                console.error('Error validating VAT:', vatEntry, error);
-                results.push({ vat: vatEntry, valid: false, error: 'API error' });
-                invalidCount++;
+                return { result: { vat: vatEntry, valid: false, error: error.message }, validInc: 0, invalidInc: 1 };
             }
+        };
 
-            progressBar.value = i + 1;
-            progressText.textContent = `${i + 1}/${lines.length}`;
+        const tasks = [];
+        for (let i = startIndex; i < lines.length; i++) {
+            tasks.push(() => processVATEntry(i));
+        }
+
+        const onProgress = (taskIndex) => {
+            progressBar.value = startIndex + taskIndex + 1;
+            progressText.textContent = `${progressBar.value}/${lines.length}`;
+        };
+
+        const taskResults = await processWithConcurrency(tasks, 20, onProgress);
+
+        for (let res of taskResults) {
+            if (res.result) {
+                results.push(res.result);
+            }
+            validCount += res.validInc;
+            invalidCount += res.invalidInc;
         }
 
         // Finished
