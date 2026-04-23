@@ -236,10 +236,14 @@ async function performValidation(lines, startIndex, initialResults, initialValid
 
     try {
 
-        
+        const startTime = performance.now();
 
         const results = await processCSVBatchDualApi(lines, (i)=>updater(i, lines.length));
-        
+
+        const elapsedTime = performance.now() - startTime;
+        const averageTime = elapsedTime / results.length;
+        console.log(`CSV batch processing time: ${elapsedTime.toFixed(2)}ms for ${lines.length} lines (${results.length} VAT validations, avg ${averageTime.toFixed(2)}ms per VAT)`);
+
         validCount = results.filter(res=>res.valid).length;
         invalidCount = results.filter(res=>!res.valid).length;
 

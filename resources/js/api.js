@@ -1,9 +1,6 @@
 import { NeutralFetch } from './fetch.js';
 import { isValidEUCountryCode, RateLimiter, createSOAPRequest, escapeShellArg, buildSOAPCurlCommand, isRateLimitedResponse, parseSOAPResponse, } from './utils.js';
 
-// Global rate limiter instance for SOAP API
-const soapRateLimiter = new RateLimiter(5, 100);
-const restRateLimiter = new RateLimiter(5, 100);
 
 /*
     Function to fetch VAT validation data from VIES API.
@@ -14,9 +11,12 @@ export async function fetchVATData(countryCode, vatNumber) {
     const maxRetries = 100;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        // restRateLimiter.waitForSlot();
         try {
-            return await NeutralFetch.request(url);
+            const startTime = performance.now();
+            const result = await NeutralFetch.request(url);
+            const elapsedTime = performance.now() - startTime;
+            console.log(`REST API request time (attempt ${attempt}): ${elapsedTime.toFixed(2)}ms`);
+            return result;
         } catch (error) {
             console.log(`API response error (attempt ${attempt}):`, error.message);
             if (attempt < maxRetries) {
@@ -43,7 +43,6 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         // Apply rate limiting before making the request
-        // await soapRateLimiter.waitForSlot();
 
         try {
             const startTime = performance.now();
@@ -262,7 +261,7 @@ async function runMultiFunWithConcurrency(args, fns, limit = 20, counter = () =>
 export async function processCSVBatchDualApi(lines, updater = () => { }) {
     const vatNumbers = lines.map(line => line.split(',')[0].trim())
 
-    const results = await runMultiFunWithConcurrency(vatNumbers, [processVATEntry, processVATEntrySOAP], 20, updater)
+    const results = await runMultiFunWithConcurrency(vatNumbers, [processVATEntry, processVATEntrySOAP], 12, updater)
 
     return results;
 }
