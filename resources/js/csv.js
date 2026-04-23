@@ -1,9 +1,18 @@
-import { processCSVBatch, processCSVBatchSOAP } from './api.js';
+import { processCSVBatchDualApi } from './api.js';
 import { CSV_TEMPLATE } from './utils.js';
 
 let selectedCSVPath = null;
 let validationRunning = false;
 let validationPaused = false;
+
+const resultDiv = document.getElementById('csv-validation-result');
+const progressBar = document.getElementById('validation-progress');
+const progressText = document.getElementById('progress-text');
+const pauseBtn = document.getElementById('pause-validation-btn');
+const resumeBtn = document.getElementById('resume-validation-btn');
+const exportBtn = document.getElementById('export-csv-btn');
+const validateBtn = document.getElementById('validate-csv-btn');
+
 
 function saveValidationState(lines, currentIndex, results, validCount, invalidCount) {
     localStorage.setItem('validationState', JSON.stringify({
@@ -103,13 +112,7 @@ export async function selectCSVFile() {
             validationPaused = false;
 
             // Reset UI
-            const resultDiv = document.getElementById('csv-validation-result');
-            const progressBar = document.getElementById('validation-progress');
-            const progressText = document.getElementById('progress-text');
-            const pauseBtn = document.getElementById('pause-validation-btn');
-            const resumeBtn = document.getElementById('resume-validation-btn');
-            const exportBtn = document.getElementById('export-csv-btn');
-            const validateBtn = document.getElementById('validate-csv-btn');
+
 
             resultDiv.innerHTML = '';
             progressBar.style.display = 'none';
@@ -201,17 +204,17 @@ export async function validateCSV() {
 }
 
 
+function updater(idx, total) {
+     progressBar.value = idx+1;
+    progressText.textContent = `${idx+1}/${total}`;
+}
+
 
 /*
     Function to perform the validation loop, can be resumed.
 */
 async function performValidation(lines, startIndex, initialResults, initialValidCount, initialInvalidCount) {
-    const resultDiv = document.getElementById('csv-validation-result');
-    const progressBar = document.getElementById('validation-progress');
-    const progressText = document.getElementById('progress-text');
-    const pauseBtn = document.getElementById('pause-validation-btn');
-    const resumeBtn = document.getElementById('resume-validation-btn');
-    const validateBtn = document.getElementById('validate-csv-btn');
+
 
     resultDiv.innerHTML = '<p>Validation in progress...</p>';
 
@@ -232,7 +235,10 @@ async function performValidation(lines, startIndex, initialResults, initialValid
     let invalidCount = initialInvalidCount;
 
     try {
-        const batchResult = await processCSVBatchSOAP(lines, startIndex, progressBar, progressText, results, validCount, invalidCount);
+
+        
+
+        const batchResult = await processCSVBatchDualApi(lines, (i)=>updater(i, lines.length));
         results = batchResult.results;
         validCount = batchResult.validCount;
         invalidCount = batchResult.invalidCount;

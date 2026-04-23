@@ -93,3 +93,132 @@ PL1234567890
 BE1234567890
 ATU12345678
 DK12345678`;
+
+
+export /*
+    Parse SOAP XML response using DOMParser.
+*/
+function parseSOAPResponse(xmlResponse) {
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlResponse, 'text/xml');
+        
+        // Check for SOAP fault
+        const faultElement = xmlDoc.querySelector('Fault, fault, *|Fault');
+        if (faultElement) {
+            const faultString = faultElement.querySelector('faultstring, faultString')?.textContent || 'Unknown SOAP fault';
+            return { error: `SOAP API error: ${faultString}`, faultString };
+        }
+        
+        // Get checkVatResponse element (with or without namespace)
+        const checkVatResponse = xmlDoc.querySelector('checkVatResponse, *|checkVatResponse');
+        
+        if (!checkVatResponse) {
+            return { error: 'Invalid SOAP response format - missing checkVatResponse' };
+        }
+        
+        // Extract required fields with namespace handling
+        const getElementText = (elementName) => {
+            // Try with namespace prefix first, then without
+            const element = checkVatResponse.querySelector(`${elementName}, *|${elementName}`);
+            return element ? element.textContent || '' : '';
+        };
+        
+        const countryCodeText = getElementText('countryCode');
+        const vatNumberText = getElementText('vatNumber');
+        const requestDateText = getElementText('requestDate');
+        const validText = getElementText('valid');
+        const nameText = getElementText('name');
+        const addressText = getElementText('address');
+        
+        if (!validText) {
+            return { error: 'Invalid SOAP response format - missing valid element' };
+        }
+        
+        const isValid = validText.toLowerCase() === 'true';
+        const name = nameText.trim() || 'N/A';
+        const address = addressText.trim() || 'N/A';
+        const vatNum = vatNumberText || '';
+        const country = countryCodeText || '';
+        
+        return {
+            data: {
+                isValid,
+                vatNumber: `${country}${vatNum}`,
+                name,
+                address,
+                countryCode: country,
+                requestDate: requestDateText || new Date().toISOString()
+            }
+        };
+        
+    } catch (parseError) {
+        console.error('Error parsing SOAP response:', parseError);
+        return { error: `Failed to parse SOAP response: ${parseError.message}` };
+    }
+}
+
+
+export function createRunner(args, fns, limit = 10, counter=()=>{}) {
+  const results = new Array(args.length);
+  let nextIndex = 0;
+  let paused = false;
+  let aborted = false;
+  let pausePromise = null;
+  let pauseResolve = null;
+
+  function pause() {
+    if (paused || aborted) return;
+    paused = true;
+    pausePromise = new Promise(resolve => {
+      pauseResolve = resolve;
+    });
+  }
+
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    pauseResolve?.();
+    pausePromise = null;
+    pauseResolve = null;
+  }
+
+  function abort() {
+    aborted = true;
+    // jeśli byliśmy w pauzie, odblokuj workery żeby mogły wyjść
+    pauseResolve?.();
+  }
+
+  async function worker() {
+    while (true) {
+      if (aborted) return;
+      if (paused) await pausePromise;
+      if (aborted) return;
+
+      const i = nextIndex++;
+      if (i >= args.length) return;
+
+      const fn = fns[i % fns.length];
+      try {
+        results[i] = await fn(args[i]);
+        counter(i);
+      } catch (err) {
+        results[i] = { error: err };
+      }
+    }
+  }
+
+  const donePromise = Promise.all(
+    Array.from({ length: Math.min(limit, args.length) }, worker)
+  ).then(() => results);
+
+  return {
+    pause,
+    resume,
+    abort,
+    done: donePromise,
+    get progress() {
+      return { completed: nextIndex, total: args.length, paused, aborted };
+    },
+  };
+}

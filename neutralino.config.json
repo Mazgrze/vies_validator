@@ -20,29 +20,19 @@
     "debug.log"
   ],
   "globalVariables": {
-    "TEST1": "Hello",
-    "TEST2": [
-      2,
-      4,
-      5
-    ],
-    "TEST3": {
-      "value1": 10,
-      "value2": {}
-    }
   },
   "modes": {
     "window": {
       "title": "vies_validator",
       "width": 800,
-      "height": 500,
+      "height": 700,
       "minWidth": 400,
       "minHeight": 200,
       "center": true,
       "fullScreen": false,
       "alwaysOnTop": false,
       "icon": "/resources/icons/appIcon.png",
-      "enableInspector": false,
+      "enableInspector": true,
       "borderless": false,
       "maximize": false,
       "hidden": false,
@@ -51,7 +41,6 @@
     },
     "browser": {
       "globalVariables": {
-        "TEST": "Test value browser"
       },
       "nativeBlockList": [
         "filesystem.*"

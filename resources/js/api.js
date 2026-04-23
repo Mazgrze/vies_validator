@@ -1,14 +1,15 @@
-import { isValidEUCountryCode, RateLimiter, createSOAPRequest, escapeShellArg, buildSOAPCurlCommand, isRateLimitedResponse, } from './utils.js';
+import { NeutralFetch } from './fetch.js';
+import { isValidEUCountryCode, RateLimiter, createSOAPRequest, escapeShellArg, buildSOAPCurlCommand, isRateLimitedResponse, parseSOAPResponse, } from './utils.js';
 
 // Global rate limiter instance for SOAP API
-const soapRateLimiter = new RateLimiter(3, 100); 
+const soapRateLimiter = new RateLimiter(5, 100);
 
 /*
     Function to fetch VAT validation data from VIES API.
 */
 export async function fetchVATData(countryCode, vatNumber) {
     const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
-    console.log('Validating:', countryCode, vatNumber, 'URL:', url);
+    console.log('Validating via REST:', countryCode, vatNumber, 'URL:', url);
     const maxRetries = 100;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -30,75 +31,12 @@ export async function fetchVATData(countryCode, vatNumber) {
 }
 
 /*
-    Parse SOAP XML response using DOMParser.
-*/
-function parseSOAPResponse(xmlResponse) {
-    try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlResponse, 'text/xml');
-        
-        // Check for SOAP fault
-        const faultElement = xmlDoc.querySelector('Fault, fault, *|Fault');
-        if (faultElement) {
-            const faultString = faultElement.querySelector('faultstring, faultString')?.textContent || 'Unknown SOAP fault';
-            return { error: `SOAP API error: ${faultString}`, faultString };
-        }
-        
-        // Get checkVatResponse element (with or without namespace)
-        const checkVatResponse = xmlDoc.querySelector('checkVatResponse, *|checkVatResponse');
-        
-        if (!checkVatResponse) {
-            return { error: 'Invalid SOAP response format - missing checkVatResponse' };
-        }
-        
-        // Extract required fields with namespace handling
-        const getElementText = (elementName) => {
-            // Try with namespace prefix first, then without
-            const element = checkVatResponse.querySelector(`${elementName}, *|${elementName}`);
-            return element ? element.textContent || '' : '';
-        };
-        
-        const countryCodeText = getElementText('countryCode');
-        const vatNumberText = getElementText('vatNumber');
-        const requestDateText = getElementText('requestDate');
-        const validText = getElementText('valid');
-        const nameText = getElementText('name');
-        const addressText = getElementText('address');
-        
-        if (!validText) {
-            return { error: 'Invalid SOAP response format - missing valid element' };
-        }
-        
-        const isValid = validText.toLowerCase() === 'true';
-        const name = nameText.trim() || 'N/A';
-        const address = addressText.trim() || 'N/A';
-        const vatNum = vatNumberText || '';
-        const country = countryCodeText || '';
-        
-        return {
-            data: {
-                isValid,
-                vatNumber: `${country}${vatNum}`,
-                name,
-                address,
-                countryCode: country,
-                requestDate: requestDateText || new Date().toISOString()
-            }
-        };
-        
-    } catch (parseError) {
-        console.error('Error parsing SOAP response:', parseError);
-        return { error: `Failed to parse SOAP response: ${parseError.message}` };
-    }
-}
-
-/*
     Function to fetch VAT validation data from VIES SOAP API.
     Uses SOAP endpoint: https://ec.europa.eu/taxation_customs/vies/services/checkVatService
 */
 export async function fetchVATDataSOAP(countryCode, vatNumber) {
     console.log('Validating via SOAP:', countryCode, vatNumber);
-    
+
     const soapRequest = createSOAPRequest(countryCode, vatNumber);
     const url = 'https://ec.europa.eu/taxation_customs/vies/services/checkVatService';
     const maxRetries = 10;
@@ -107,7 +45,7 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         // Apply rate limiting before making the request
         await soapRateLimiter.waitForSlot();
-        
+
         // Build and execute curl command
         const command = buildSOAPCurlCommand(url, soapRequest);
         const response = await Neutralino.os.execCommand(command);
@@ -115,7 +53,7 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
 
         if (response.exitCode === 0) {
             const xmlResponse = response.stdOut;
-            
+
             // Check for rate limiting error first
             if (isRateLimitedResponse(xmlResponse)) {
                 console.log(`SOAP API rate limited (MS_MAX_CONCURRENT_REQ), attempt ${attempt}`);
@@ -129,10 +67,10 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
                     throw new Error(`SOAP API rate limited after ${maxRetries} retries`);
                 }
             }
-            
+
             // Parse the SOAP response
             const parseResult = parseSOAPResponse(xmlResponse);
-            
+
             if (parseResult.error) {
                 // Check if it's a rate limiting or server error that we should retry
                 const faultString = parseResult.faultString || '';
@@ -145,24 +83,25 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
                         continue;
                     }
                 }
-                
+
                 // Log detailed error for debugging
                 console.log('SOAP response (first 1000 chars):', xmlResponse.substring(0, 1000));
-                throw new Error(parseResult.error);
+                // throw new Error(parseResult.error);
+                return {}
             }
-            
+
             // Successfully parsed response
             const { data } = parseResult;
-            console.log('SOAP API parsed result:', { 
-                isValid: data.isValid, 
-                country: data.countryCode, 
+            console.log('SOAP API parsed result:', {
+                isValid: data.isValid,
+                country: data.countryCode,
                 vatNum: data.vatNumber,
-                name: data.name.substring(0, 50), 
+                name: data.name.substring(0, 50),
                 address: data.address.substring(0, 100),
-                requestDate: data.requestDate 
+                requestDate: data.requestDate
             });
-            
-return data;
+
+            return data;
         } else {
             // Network/connection error (non-zero exit code)
             if (attempt < maxRetries) {
@@ -176,9 +115,8 @@ return data;
 
     throw new Error(`Failed to fetch VAT data via SOAP after ${maxRetries} attempts`);
 
-                    
-}
 
+}
 
 /*
     Function to validate a VAT number with proper error handling.
@@ -279,126 +217,40 @@ export async function processVATEntrySOAP(vatEntry) {
 }
 
 /*
-    Function to limit concurrency of async tasks.
+* 
+*  użycie:
+*  const results = await runWithConcurrency(args, [fnA, fnB], 10);
 */
-export async function processWithConcurrency(tasks, concurrencyLimit, onProgress = () => {}) {
-    const results = new Array(tasks.length);
-    let index = 0;
-    let running = 0;
-    let resolveAll;
-    const allDone = new Promise(resolve => resolveAll = resolve);
+async function runMultiFunWithConcurrency(args, fns, limit = 20, counter=()=>{}) {
+    const results = new Array(args.length);
+    let nextIndex = 0;
 
-    const runNext = async () => {
-        if (index >= tasks.length) {
-            running--;
-            if (running === 0) resolveAll();
-            return;
+    async function worker() {
+        while (true) {
+            const i = nextIndex++;
+            if (i >= args.length) return;
+            counter(i);
+            const fn = fns[i % fns.length];
+            try {
+                results[i] = await fn(args[i]);
+            } catch (err) {
+                results[i] = { error: err };
+            }
         }
-
-        const taskIndex = index++;
-        running++;
-
-        try {
-            results[taskIndex] = await tasks[taskIndex]();
-        } catch (error) {
-            results[taskIndex] = { error };
-        }
-
-        onProgress(taskIndex);
-
-        running--;
-        if (running === 0 && index >= tasks.length) resolveAll();
-        runNext();
-    };
-
-    for (let i = 0; i < concurrencyLimit && i < tasks.length; i++) {
-        runNext();
     }
 
-    await allDone;
+    await Promise.all(
+        Array.from({ length: Math.min(limit, args.length) }, worker)
+    );
     return results;
 }
 
-/*
-    Function to process a batch of CSV lines concurrently.
-*/
-export async function processCSVBatch(lines, startIndex, progressBar, progressText, initialResults, initialValidCount, initialInvalidCount) {
-    let results = [...initialResults];
-    let validCount = initialValidCount;
-    let invalidCount = initialInvalidCount;
 
-    const processCSVLine = async (i) => {
-        const line = lines[i].trim();
-        if (!line) return { result: null, validInc: 0, invalidInc: 0 };
 
-        const columns = line.split(',');
-        if (columns.length === 0) return { result: null, validInc: 0, invalidInc: 0 };
+export async function processCSVBatchDualApi(lines, updater=()=>{}) {
+    const vatNumbers = lines.map(line => line.split(',')[0].trim())
 
-        const vatEntry = columns[0].trim();
-        return await processVATEntry(vatEntry);
-    };
+    const results = await runMultiFunWithConcurrency(vatNumbers, [processVATEntry, processVATEntrySOAP], 20, updater)
 
-    const tasks = [];
-    for (let i = startIndex; i < lines.length; i++) {
-        tasks.push(() => processCSVLine(i));
-    }
-
-    const onProgress = (taskIndex) => {
-        progressBar.value = startIndex + taskIndex + 1;
-        progressText.textContent = `${progressBar.value}/${lines.length}`;
-    };
-
-    const taskResults = await processWithConcurrency(tasks, 20, onProgress);
-
-    for (let res of taskResults) {
-        if (res.result) {
-            results.push(res.result);
-        }
-        validCount += res.validInc;
-        invalidCount += res.invalidInc;
-    }
-
-    return { results, validCount, invalidCount };
-}
-
-/*
-    Function to process a batch of CSV lines with SOAP API (lower concurrency).
-*/
-export async function processCSVBatchSOAP(lines, startIndex, progressBar, progressText, initialResults, initialValidCount, initialInvalidCount) {
-    let results = [...initialResults];
-    let validCount = initialValidCount;
-    let invalidCount = initialInvalidCount;
-
-    const processCSVLineSOAP = async (i) => {
-        const line = lines[i].trim();
-        if (!line) return { result: null, validInc: 0, invalidInc: 0 };
-
-        const columns = line.split(',');
-        if (columns.length === 0) return { result: null, validInc: 0, invalidInc: 0 };
-
-        const vatEntry = columns[0].trim();
-        return await processVATEntrySOAP(vatEntry);
-    };
-
-    const tasks = [];
-    for (let i = startIndex; i < lines.length; i++) {
-        tasks.push(() => processCSVLineSOAP(i));
-    }
-
-    const onProgress = (taskIndex) => {
-        progressBar.value = startIndex + taskIndex + 1;
-        progressText.textContent = `${progressBar.value}/${lines.length}`;
-    };
-
-    const taskResults = await processWithConcurrency(tasks, 10, onProgress);
-
-    for (let res of taskResults) {
-        if (res.result) {
-            results.push(res.result);
-        }
-        validCount += res.validInc;
-        invalidCount += res.invalidInc;
-    }
-
-    return { results, validCount, invalidCount };
+    return results;
 }
