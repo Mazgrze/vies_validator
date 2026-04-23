@@ -1,5 +1,5 @@
 import { isValidEUCountryCode } from './utils.js';
-import { validateVAT, validateVATSOAP } from './api.js';
+import { validateVATSOAP } from './api.js';
 
 /*
     Function to validate VAT number using VIES REST API via curl to bypass CORS.

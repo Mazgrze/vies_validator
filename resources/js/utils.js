@@ -26,7 +26,7 @@ export class RateLimiter {
             const waitTime = this.timeWindow - (now - oldestRequest);
             
             if (waitTime > 0) {
-                console.log(`Rate limiting: waiting ${waitTime}ms before next SOAP request`);
+                console.log(`Rate limiting: waiting ${waitTime}ms before next request`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
                 
                 // Update the timestamp after waiting

@@ -3,19 +3,21 @@ export class NeutralFetch {
     const method = options.method || 'GET';
     const headers = options.headers || {};
     const body = options.body || null;
-    
+    const throwOnError = options.throwOnError !== false;
+    const parseJson = options.parseJson !== false;
+
     const platform = NL_OS; // 'Linux', 'Windows', 'Darwin'
-    
+
     switch (platform) {
       case 'Windows':
-        return this._windowsFetch(url, method, headers, body);
+        return this._windowsFetch(url, method, headers, body, throwOnError, parseJson);
       case 'Linux':
       case 'Darwin':
-        return this._unixFetch(url, method, headers, body);
+        return this._unixFetch(url, method, headers, body, throwOnError, parseJson);
     }
   }
 
-  static async _unixFetch(url, method, headers, body) {
+  static async _unixFetch(url, method, headers, body, throwOnError, parseJson) {
     let headerArgs = Object.entries(headers)
       .map(([k, v]) => `-H "${k}: ${v}"`)
       .join(' ');
@@ -34,29 +36,36 @@ export class NeutralFetch {
     const lines = result.stdOut.trim().split('\n');
     const status = parseInt(lines.pop());
     const responseBody = lines.join('\n');
-    if (status !== 200) {
-      throw new Error(`HTTP ${status}: ${responseBody}`);
+    const parsedBody = parseJson && status === 200 ? JSON.parse(responseBody) : responseBody;
+    if (throwOnError && status !== 200) {
+      throw new Error(`HTTP ${status}: ${parsedBody}`);
     }
-    return JSON.parse(responseBody);
+    return throwOnError ? parsedBody : { status, body: parsedBody };
   }
 
-  static async _windowsFetch(url, method, headers, body) {
-    let headersStr = Object.entries(headers).map(([k, v]) => `"${k}"="${v}"`).join('; ');
-    let cmd = `powershell -Command "$resp = Invoke-WebRequest -Uri '${url}' -Method ${method}`;
-    if (headersStr) {
-      cmd += ` -Headers @{${headersStr}}`;
+  static _encodeUtf16Base64(str) {
+    let bytes = '';
+    for (let i = 0; i < str.length; i++) {
+      let code = str.charCodeAt(i);
+      bytes += String.fromCharCode(code & 0xFF, (code >> 8) & 0xFF);
     }
-    if (body) {
-      cmd += ` -Body '${body}'`;
-    }
-    cmd += `; Write-Host $resp.StatusCode; $resp.Content"`;
+    return btoa(bytes);
+  }
+
+  static async _windowsFetch(url, method, headers, body, throwOnError, parseJson) {
+    let headersStr = Object.entries(headers).map(([k, v]) => `'${k}'='${v}'`).join('; ');
+    let headersPart = headersStr ? `-Headers @{${headersStr}}` : '';
+    let bodyPart = body ? `-Body '${body.replace(/'/g, "''")}'` : '';
+    let script = `$resp = Invoke-WebRequest -UseBasicParsing -Uri '${url}' -Method ${method} ${headersPart} ${bodyPart}; Write-Host $resp.StatusCode; $resp.Content`;
+    let cmd = `powershell -EncodedCommand ${this._encodeUtf16Base64(script)}`;
     const result = await Neutralino.os.execCommand(cmd);
     const lines = result.stdOut.trim().split('\n');
     const status = parseInt(lines.shift());
     const responseBody = lines.join('\n');
-    if (status !== 200) {
-      throw new Error(`HTTP ${status}: ${responseBody}`);
+    const parsedBody = parseJson && status === 200 ? JSON.parse(responseBody) : responseBody;
+    if (throwOnError && status !== 200) {
+      throw new Error(`HTTP ${status}: ${parsedBody}`);
     }
-    return JSON.parse(responseBody);
+    return throwOnError ? parsedBody : { status, body: parsedBody };
   }
 }

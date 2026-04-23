@@ -137,10 +137,10 @@ export async function selectCSVFile() {
 */
 function displayValidationResults(results, validCount, invalidCount, resultDiv) {
     // Display results
-    let html = `<p>Validation complete. Valid: ${validCount}, Invalid: ${invalidCount}</p>`;
+    let html = `<p>Validation complete. Valid: ${validCount}, Invalid: ${invalidCount}</p> <p>First 20 results:</p>`;
     html += '<table border="1" style="border-collapse: collapse;"><tr><th>VAT Number</th><th>Valid</th><th>Name</th><th>Address</th></tr>';
 
-    for (const result of results) {
+    for (const result of results.slice(0,20)) {
         const color = result.valid ? 'green' : 'red';
         const status = result.valid ? 'Yes' : (result.error || 'No');
         html += `<tr style="color: ${color};"><td>${result.vat}</td><td>${status}</td><td>${result.name || ''}</td><td>${result.address || ''}</td></tr>`;
@@ -238,10 +238,10 @@ async function performValidation(lines, startIndex, initialResults, initialValid
 
         
 
-        const batchResult = await processCSVBatchDualApi(lines, (i)=>updater(i, lines.length));
-        results = batchResult.results;
-        validCount = batchResult.validCount;
-        invalidCount = batchResult.invalidCount;
+        const results = await processCSVBatchDualApi(lines, (i)=>updater(i, lines.length));
+        
+        validCount = results.filter(res=>res.valid).length;
+        invalidCount = results.filter(res=>!res.valid).length;
 
         // Finished
         clearValidationState();
