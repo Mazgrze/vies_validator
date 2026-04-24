@@ -1,3 +1,5 @@
+import { cleanStringForJSON } from "./utils";
+
 export class NeutralFetch {
   static async request(url, options = {}) {
     const method = options.method || 'GET';

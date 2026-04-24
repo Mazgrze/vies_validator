@@ -225,7 +225,7 @@ export function createRunner(args, fns, limit = 10, counter=()=>{}) {
 
 
 
-function cleanStringForJSON(str) {
+export function cleanStringForJSON(str) {
   if (typeof str !== "string") {
     throw new TypeError("Input must be a string");
   }
@@ -247,4 +247,27 @@ function cleanStringForJSON(str) {
       // Remove non-printable Unicode characters
       .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, "")
   );
+}
+
+export function escapeCsvValue(value, delimiter = ',') {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const str = String(value);
+
+  // 1. Escape double-quotes by doubling them -> " becomes ""
+  const escaped = str.replace(/"/g, '""');
+
+  // 2. Check if we need to wrap in quotes
+  const needsQuotes = 
+    escaped.includes(delimiter) || // the main delimiter (usually ,)
+    escaped.includes('"')        || // original had quotes
+    escaped.includes('\n')       || // newline
+    escaped.includes('\r')       || // carriage return
+    escaped.includes(';')        || // EU Excel uses ;
+    escaped.includes(':')        || // you asked for it
+    /^\s|\s$/.test(escaped);        // leading/trailing space
+
+  return needsQuotes ? `"${escaped}"` : escaped;
 }

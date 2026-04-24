@@ -1,5 +1,5 @@
 import { NeutralFetch } from './fetch.js';
-import { isValidEUCountryCode, RateLimiter, createSOAPRequest, escapeShellArg, buildSOAPCurlCommand, isRateLimitedResponse, parseSOAPResponse, } from './utils.js';
+import { isValidEUCountryCode, RateLimiter, createSOAPRequest, escapeShellArg, buildSOAPCurlCommand, isRateLimitedResponse, parseSOAPResponse, escapeCsvValue, } from './utils.js';
 
 
 /*
@@ -103,8 +103,8 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
                     isValid: data.isValid,
                     country: data.countryCode,
                     vatNum: data.vatNumber,
-                    name: data.name.substring(0, 50),
-                    address: data.address.substring(0, 100),
+                    name: escapeCsvValue(data.name).substring(0, 50),
+                    address: escapeCsvValue(data.address).substring(0, 100),
                     requestDate: data.requestDate
                 });
 
@@ -145,8 +145,8 @@ export async function validateVAT(countryCode, vatNumber) {
     return {
         valid: data.isValid,
         vatNumber: data.vatNumber,
-        name: data.name || 'N/A',
-        address: data.address || 'N/A',
+        name: escapeCsvValue(data.name) || 'N/A',
+        address: escapeCsvValue(data.address) || 'N/A',
         rawData: data
     };
 }
@@ -160,8 +160,8 @@ export async function validateVATSOAP(countryCode, vatNumber) {
     return {
         valid: data.isValid,
         vatNumber: data.vatNumber,
-        name: data.name,
-        address: data.address,
+        name: escapeCsvValue(data.name),
+        address: escapeCsvValue(data.address),
         rawData: data
     };
 }
@@ -188,8 +188,8 @@ export async function processVATEntry(vatEntry) {
         return {
             vat: vatEntry,
             valid: isValid,
-            name: data.name || 'N/A',
-            address: data.address || 'N/A'
+            name: escapeCsvValue(data.name) || 'N/A',
+            address: escapeCsvValue(data.address) || 'N/A'
 
         };
     } catch (error) {
@@ -219,8 +219,8 @@ export async function processVATEntrySOAP(vatEntry) {
         return {
             vat: vatEntry,
             valid: isValid,
-            name: data.name || 'N/A',
-            address: data.address || 'N/A'
+            name: escapeCsvValue(data.name) || 'N/A',
+            address: escapeCsvValue(data.address) || 'N/A'
         };
     } catch (error) {
         return { vat: vatEntry, valid: false, error: error.message };
