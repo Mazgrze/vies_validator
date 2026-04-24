@@ -313,16 +313,14 @@ export async function exportValidatedCSV() {
 
         // Ensure the directory exists
         const dir = exportPath.substring(0, exportPath.lastIndexOf('/'));
-        const escapedContent = csvContent.replace(/'/g, "'\\''"); // Escape single quotes
-        const command = `mkdir -p "${dir}" && printf '%s\\n' '${escapedContent}' > "${exportPath}"`;
-
-        const result = await Neutralino.os.execCommand(command);
-
-        if (result.exitCode === 0) {
-            Neutralino.os.showMessageBox('Success', `Validation results exported to: ${exportPath}`);
-        } else {
-            throw new Error(`Command failed: ${result.stdErr}`);
+        try {
+            await Neutralino.filesystem.readDirectory(dir);
+        } catch (err) {
+            throw new Error(`Directory ${dir} does not exist. Please choose an existing directory.`);
         }
+        await Neutralino.filesystem.writeFile(exportPath, csvContent);
+
+        Neutralino.os.showMessageBox('Success', `Validation results exported to: ${exportPath}`);
     } catch (error) {
         console.error('Error exporting CSV:', error);
         Neutralino.os.showMessageBox('Error', 'Failed to export CSV results.');

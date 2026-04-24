@@ -13,7 +13,7 @@ export async function fetchVATData(countryCode, vatNumber) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const startTime = performance.now();
-            const result = await NeutralFetch.request(url);
+            const result = await NeutralFetch.request(url, { forceCurl: false });
             const elapsedTime = performance.now() - startTime;
             console.log(`REST API request time (attempt ${attempt}): ${elapsedTime.toFixed(2)}ms`);
             return result;
@@ -51,7 +51,8 @@ export async function fetchVATDataSOAP(countryCode, vatNumber) {
                 headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '' },
                 body: soapRequest,
                 throwOnError: false,
-                parseJson: false
+                parseJson: false,
+                forceCurl: false
             });
             console.log(`SOAP API response status (attempt ${attempt}):`, result.status);
             const elapsedTime = performance.now() - startTime;

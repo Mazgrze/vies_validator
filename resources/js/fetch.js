@@ -5,8 +5,13 @@ export class NeutralFetch {
     const body = options.body || null;
     const throwOnError = options.throwOnError !== false;
     const parseJson = options.parseJson !== false;
+    const forceCurl = options.forceCurl || false;
 
     const platform = NL_OS; // 'Linux', 'Windows', 'Darwin'
+
+    if (forceCurl) {
+      return this._unixFetch(url, method, headers, body, throwOnError, parseJson);
+    }
 
     switch (platform) {
       case 'Windows':
@@ -36,7 +41,14 @@ export class NeutralFetch {
     const lines = result.stdOut.trim().split('\n');
     const status = parseInt(lines.pop());
     const responseBody = lines.join('\n');
-    const parsedBody = parseJson && status === 200 ? JSON.parse(responseBody) : responseBody;
+    let parsedBody = responseBody;
+    if (parseJson && status === 200) {
+      try {
+        parsedBody = JSON.parse(responseBody);
+      } catch (e) {
+        // If JSON parsing fails, keep as raw string
+      }
+    }
     if (throwOnError && status !== 200) {
       throw new Error(`HTTP ${status}: ${parsedBody}`);
     }
@@ -62,7 +74,14 @@ export class NeutralFetch {
     const lines = result.stdOut.trim().split('\n');
     const status = parseInt(lines.shift());
     const responseBody = lines.join('\n');
-    const parsedBody = parseJson && status === 200 ? JSON.parse(responseBody) : responseBody;
+    let parsedBody = responseBody;
+    if (parseJson && status === 200) {
+      try {
+        parsedBody = JSON.parse(responseBody);
+      } catch (e) {
+        // If JSON parsing fails, keep as raw string
+      }
+    }
     if (throwOnError && status !== 200) {
       throw new Error(`HTTP ${status}: ${parsedBody}`);
     }

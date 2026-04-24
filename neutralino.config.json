@@ -75,23 +75,23 @@
     "mac": {
       "architecture": ["x64", "arm64", "universal"],
       "minimumOS": "10.13.0",
-      "appName": "myapp",
-      "appBundleName": "myapp",
+      "appName": "Vies-Vat-Validator",
+      "appBundleName": "Vies-Vat-Validator",
       "appIdentifier": "com.marketmix.ext.bun.demo",
       "appIcon":  "resources/icons/icon.icns"
     },
     "win": {
       "architecture": ["x64"],
-      "appName": "myapp",
+      "appName": "Vies-Vat-Validator",
       "appIcon": "resources/icons/icon.ico"
     },
     "linux": {
       "architecture": ["x64", "arm64", "armhf"],
-      "appName": "myapp",
+      "appName": "Vies-Vat-Validator",
       "appIcon": "resources/icons/icon.png",
-      "appPath":  "/usr/share/myapp",
-      "appIconPath": "/usr/share/myapp/icon.png",
-      "appIconLocation": "/usr/share/myapp/icon.png"
+      "appPath":  "/usr/share/Vies-Vat-Validator",
+      "appIconPath": "/usr/share/Vies-Vat-Validator/icon.png",
+      "appIconLocation": "/usr/share/Vies-Vat-Validator/icon.png"
     }
   }
 }
