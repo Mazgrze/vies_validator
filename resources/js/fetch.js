@@ -77,7 +77,7 @@ export class NeutralFetch {
     let parsedBody = responseBody;
     if (parseJson && status === 200) {
       try {
-        parsedBody = JSON.parse(responseBody);
+        parsedBody = JSON.parse( cleanStringForJSON(responseBody));
       } catch (e) {
         // If JSON parsing fails, keep as raw string
       }

@@ -222,3 +222,29 @@ export function createRunner(args, fns, limit = 10, counter=()=>{}) {
     },
   };
 }
+
+
+
+function cleanStringForJSON(str) {
+  if (typeof str !== "string") {
+    throw new TypeError("Input must be a string");
+  }
+
+  return (
+    str
+      // Remove control characters (0x00-0x1F) except valid whitespace
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+      // Replace actual newlines and tabs with escaped versions
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t")
+      // Remove escape sequences like \x00-\xFF
+      .replace(/\\x[0-9a-fA-F]{2}/g, "")
+      // Remove Unicode escape sequences that could be problematic
+      .replace(/\\u[0-9a-fA-F]{4}/g, "")
+      // Escape unescaped backslashes
+      .replace(/\\(?!["\\/bfnrtu])/g, "\\\\")
+      // Remove non-printable Unicode characters
+      .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, "")
+  );
+}
